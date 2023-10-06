@@ -1,0 +1,8 @@
+This is a sample file.
+I want to load it in a buffer.
+
+I put in some extra spaces.
+
+
+
+Look at me I develop in C!!!
