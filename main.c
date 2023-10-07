@@ -5,19 +5,79 @@
 #include <string.h>
 #include <ncurses.h>
 
+struct Editor {
+    // Editor values
+    int xCoor;
+    int yCoor;
+    char lastKeyPressed;
+
+    // Insert mode tracking
+    int insertMode;
+
+    // Tracks if the app should exit
+    int exitApp;
+
+    // Current file that is being edited
+    FILE *filePtr;
+}
+
+processKeyPress(int keyPressed, struct Editor *editor) {
+    // Always check for the escape key being pressed because regardless of
+    // anything else we want to exit insert mode and move into navigation
+    // mode.
+    if (keyPressed == 9) { // Key code for escape
+        editor->insertMode = 0;
+    } else if (!editor->insertMode) { // Key bindings for navigation
+        if (keyPressed == 106) {
+             editor->yCoor += 1;
+        } else if (keyPressed == 'k') {
+             editor->yCoor -= 1;
+        } else if (keyPressed == 'h') {
+             editor->xCoor -= 1;
+        } else if (keyPressed == 'l') {
+             editor->xCoor += 1;
+        } else if (keyPressed == 'i') {
+            editor->insertMode = 1;
+        } else if (keyPressed == 'q') {
+            editor->exitApp = 1;
+        }
+    } else if (editor->insertMode) { // Key bindings for typing stuff
+        // TODO(map) Implement the insert mode
+    } else {
+        printf("There was a massive error somewhere");
+        exit(1);
+    }
+}
+
+void readFile(struct Editor *editor, char shortenedName[]) {
+    // Read the contents of the file
+    editor->filePtr = fopen(shortenedName, "r");
+}
+
+void drawFile(struct Editor *editor) {
+    char fileContents[100];
+    while (fgets(fileContents, 100, editor->filePtr)) {
+#ifdef NO_LINK
+        printf("%s", fileContents);
+#elif LINK
+        printw("%s", fileContents);
+#endif
+    }
+
+}
+
 int main(int argc, char *argv[]) {
     struct termios info;  // Holds attributes for the terminal
 
-    // Editor values
-    int xCoor = 0;
-    int yCoor = 0;
-    char key;
+    // Holds the data for the editor itself
+    struct Editor editor;
+    // Init the editor struct with the appropriate values
+    editor.xCoor = 0;
+    editor.yCoor = 0;
+    editor.insertMode = 0;
+    editor.exitApp = 0;
 
-    // Insert mode tracking
-    int insertMode = 0;
-
-    // Tracks if the app should exit
-    int exitApp = 0;
+    char key; // Holder for the key that is pressed
 
     // Clear the screen and set the cursor location
     system("clear");
@@ -46,14 +106,9 @@ int main(int argc, char *argv[]) {
 
 // Code that doesn't use ncurses at all
 #ifdef NO_LINK
-    // Read the contents of the file
-    FILE *filePtr;
-    filePtr = fopen(shortenedName, "r");
-    char fileContents[100];
-    while (fgets(fileContents, 100, filePtr)) {
-        printf("%s", fileContents);
-    }
-    fclose(filePtr);
+    // Set the file on the editor
+    readFile(&editor, shortenedName);
+    drawFile(&editor);
 
     // Get the terminal info
     tcgetattr(0, &info);
@@ -66,35 +121,21 @@ int main(int argc, char *argv[]) {
 
     // Set the cursor location. This is done here because if it isn't then
     // the printf calls up till now will happen at the designated location.
-    printf("\33[%d;%dH", yCoor, xCoor); 
+    printf("\33[%d;%dH", editor.yCoor, editor.xCoor);
 
     // Loop forever
-    while (exitApp == 0) {
+    while (editor.exitApp == 0) {
 
         key = getchar();
-        // NOTE(map) This can be removed once I've captured all the keys
-        printf("Key pressed = %d", key);
-            
-        // When certain keys are pressed do an action
-        if (key == 9) { // Key code for escape
-            insertMode = 0;
-        } else if (key == 'j' && !insertMode) {
-             yCoor += 1;
-        } else if (key == 'k' && !insertMode) {
-             yCoor -= 1;
-        } else if (key == 'h' && !insertMode) {
-             xCoor -= 1;
-        } else if (key == 'l' && !insertMode) {
-             xCoor += 1;
-        } else if (key == 'i' && !insertMode) {
-            insertMode = 1;
-        } else if (key == 'q') {
-            exitApp = 1;
-        }
+                    
+        processKeyPress(key, &editor);
 
         // Redraw the cursor at the new location
-        system("clear");
-        printf("\33[%d;%dH", yCoor, xCoor); 
+        /* system("clear"); */
+        // TODO(map) It looks like the terminal itself will be a problem here.
+        // We may need to redraw everything and track the changes that have
+        // been made to the file.
+        printf("\33[%d;%dH", editor.yCoor, editor.xCoor);
 
     }
 
@@ -112,38 +153,20 @@ int main(int argc, char *argv[]) {
     noecho();
 
     // Load the file contents and print them on the screen
-    FILE *filePtr;
-    filePtr = fopen(shortenedName, "r");
-    char fileContents[100];
-    while (fgets(fileContents, 100, filePtr)) {
-        printw("%s", fileContents);
-    }
-    fclose(filePtr);
-    move(yCoor, xCoor);
+    readFile(&editor, shortenedName);
+    drawFile(&editor);
+
+    move(editor.yCoor, editor.xCoor);
     refresh();
 
-    while (exitApp == 0) {
+    while (editor.exitApp == 0) {
 
         key = getch();
             
-        // When certain keys are pressed do an action
-        if (key == 9) { // Key code for escape
-            insertMode = 0;
-        } else if (key == 'j' && !insertMode) {
-             yCoor += 1;
-        } else if (key == 'k' && !insertMode) {
-             yCoor -= 1;
-        } else if (key == 'h' && !insertMode) {
-             xCoor -= 1;
-        } else if (key == 'l' && !insertMode) {
-             xCoor += 1;
-        } else if (key == 'i' && !insertMode) {
-            insertMode = 1;
-        } else if (key == 'q') {
-            exitApp = 1;
-        }
+        processKeyPress(key, &editor);
 
-        move(yCoor, xCoor);
+        // TODO(map) Should the move be in the processKeyPress?
+        move(editor.yCoor, editor.xCoor);
         refresh();
     }
 
@@ -152,5 +175,7 @@ int main(int argc, char *argv[]) {
 // End all code
 #endif
 
+    // Clean up editor data including closing the pointer to the file.
+    fclose(editor.filePtr);
     return 0;
 }
