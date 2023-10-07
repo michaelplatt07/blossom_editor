@@ -39,11 +39,13 @@ int main(int argc, char *argv[]) {
     int index;
     x = strrchr(fileName, '/');
     index = (int)(x - fileName) + 1;
-    printf("Index: %d\n", index);
+    /* printf("Index: %d\n", index); */
     char shortenedName[50];
     strncpy(shortenedName, fileName + index, strlen(fileName) - index);
-    printf("File name: %s\n", shortenedName);
+    /* printf("File name: %s\n", shortenedName); */
 
+// Code that doesn't use ncurses at all
+#ifdef NO_LINK
     // Read the contents of the file
     FILE *filePtr;
     filePtr = fopen(shortenedName, "r");
@@ -100,6 +102,55 @@ int main(int argc, char *argv[]) {
     tcgetattr(0, &info);
     info.c_lflag |= ICANON;
     tcsetattr(0, TCSANOW, &info);
+
+// Start of code linkining using ncurses
+#elif LINK
+
+    initscr();
+    cbreak();
+    keypad(stdscr, TRUE);
+    noecho();
+
+    // Load the file contents and print them on the screen
+    FILE *filePtr;
+    filePtr = fopen(shortenedName, "r");
+    char fileContents[100];
+    while (fgets(fileContents, 100, filePtr)) {
+        printw("%s", fileContents);
+    }
+    fclose(filePtr);
+    move(yCoor, xCoor);
+    refresh();
+
+    while (exitApp == 0) {
+
+        key = getch();
+            
+        // When certain keys are pressed do an action
+        if (key == 9) { // Key code for escape
+            insertMode = 0;
+        } else if (key == 'j' && !insertMode) {
+             yCoor += 1;
+        } else if (key == 'k' && !insertMode) {
+             yCoor -= 1;
+        } else if (key == 'h' && !insertMode) {
+             xCoor -= 1;
+        } else if (key == 'l' && !insertMode) {
+             xCoor += 1;
+        } else if (key == 'i' && !insertMode) {
+            insertMode = 1;
+        } else if (key == 'q') {
+            exitApp = 1;
+        }
+
+        move(yCoor, xCoor);
+        refresh();
+    }
+
+    endwin();
+
+// End all code
+#endif
 
     return 0;
 }
