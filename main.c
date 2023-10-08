@@ -28,7 +28,7 @@ processKeyPress(int keyPressed, struct Editor *editor) {
     if (keyPressed == 9) { // Key code for escape
         editor->insertMode = 0;
     } else if (!editor->insertMode) { // Key bindings for navigation
-        if (keyPressed == 106) {
+        if (keyPressed == 'j') {
              editor->yCoor += 1;
         } else if (keyPressed == 'k') {
              editor->yCoor -= 1;
@@ -99,10 +99,8 @@ int main(int argc, char *argv[]) {
     int index;
     x = strrchr(fileName, '/');
     index = (int)(x - fileName) + 1;
-    /* printf("Index: %d\n", index); */
     char shortenedName[50];
     strncpy(shortenedName, fileName + index, strlen(fileName) - index);
-    /* printf("File name: %s\n", shortenedName); */
 
 // Code that doesn't use ncurses at all
 #ifdef NO_LINK
@@ -119,24 +117,25 @@ int main(int argc, char *argv[]) {
 
     // TODO(map) Put on a splash screen at some point
 
-    // Set the cursor location. This is done here because if it isn't then
-    // the printf calls up till now will happen at the designated location.
-    printf("\33[%d;%dH", editor.yCoor, editor.xCoor);
+    // Start at 0,0 in the terminal so the file is printed from the beginning
+    printf("\33[0;0H");
 
     // Loop forever
     while (editor.exitApp == 0) {
-
-        key = getchar();
                     
+        key = getchar();
         processKeyPress(key, &editor);
 
-        // Redraw the cursor at the new location
-        /* system("clear"); */
         // TODO(map) It looks like the terminal itself will be a problem here.
         // We may need to redraw everything and track the changes that have
         // been made to the file.
-        printf("\33[%d;%dH", editor.yCoor, editor.xCoor);
 
+        // TODO(map) Figure out why initial key press doesn't do anything.
+        system("clear"); // Clear the screen
+        printf("\33[0;0H"); // Put cursor in upper left corner
+        rewind(editor.filePtr); // Rewind the pointer so we can reread the file
+        drawFile(&editor); // Print the file contents
+        printf("\33[%d;%dH", editor.yCoor, editor.xCoor); // Move cursor to correct new location.
     }
 
     // Before program exit, set the terminal info back to normal
