@@ -43,6 +43,18 @@ processKeyPress(int keyPressed, struct Editor *editor) {
         }
     } else if (editor->insertMode) { // Key bindings for typing stuff
         // TODO(map) Implement the insert mode
+        int success;
+        if (keyPressed == 'j') {
+            success = fseek(editor->filePtr, editor->xCoor, SEEK_SET);
+            fputs("Inserted a J", editor->filePtr);
+        }
+        if (success == 0) {
+            fputs("Inserted a J", editor->filePtr);
+        } else {
+            printf("Error seeking to file with code %d\n", success);
+            exit(1);
+        }
+        // TODO(map) Write to file.
     } else {
         printf("There was a massive error somewhere");
         exit(1);
@@ -51,7 +63,7 @@ processKeyPress(int keyPressed, struct Editor *editor) {
 
 void readFile(struct Editor *editor, char shortenedName[]) {
     // Read the contents of the file
-    editor->filePtr = fopen(shortenedName, "r");
+    editor->filePtr = fopen(shortenedName, "r+");
 }
 
 void drawFile(struct Editor *editor) {
