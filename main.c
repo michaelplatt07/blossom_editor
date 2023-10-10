@@ -3,7 +3,9 @@
 #include <termios.h>
 #include <unistd.h>
 #include <string.h>
+#ifdef LINK
 #include <ncurses.h>
+#endif
 
 struct Editor {
     // Editor values
@@ -25,9 +27,9 @@ processKeyPress(int keyPressed, struct Editor *editor) {
     // Always check for the escape key being pressed because regardless of
     // anything else we want to exit insert mode and move into navigation
     // mode.
-    if (keyPressed == 9) { // Key code for escape
+    if (keyPressed == 27) { // Key code for escape
         editor->insertMode = 0;
-    } else if (!editor->insertMode) { // Key bindings for navigation
+    } else if (editor->insertMode == 0) { // Key bindings for navigation
         if (keyPressed == 'j') {
              editor->yCoor += 1;
         } else if (keyPressed == 'k') {
@@ -41,15 +43,24 @@ processKeyPress(int keyPressed, struct Editor *editor) {
         } else if (keyPressed == 'q') {
             editor->exitApp = 1;
         }
-    } else if (editor->insertMode) { // Key bindings for typing stuff
+    } else if (editor->insertMode == 1) { // Key bindings for typing stuff
         // TODO(map) Implement the insert mode
-        int success;
-        if (keyPressed == 'j') {
-            success = fseek(editor->filePtr, editor->xCoor, SEEK_SET);
-            fputs("Inserted a J", editor->filePtr);
-        }
+        int success = fseek(editor->filePtr, editor->xCoor, SEEK_SET);
         if (success == 0) {
-            fputs("Inserted a J", editor->filePtr);
+            if (keyPressed == 'j') {
+                 fputs("j", editor->filePtr);
+            } else if (keyPressed == 'k') {
+                 fputs("k", editor->filePtr);
+            } else if (keyPressed == 'h') {
+                 fputs("h", editor->filePtr);
+            } else if (keyPressed == 'l') {
+                 fputs("l", editor->filePtr);
+            } else {
+                printf("Do not know how to insert character");
+                exit(1);
+            }
+            editor->xCoor++;
+            printf("\33[%d;%dH", editor->yCoor, editor->xCoor);
         } else {
             printf("Error seeking to file with code %d\n", success);
             exit(1);
@@ -61,14 +72,14 @@ processKeyPress(int keyPressed, struct Editor *editor) {
     }
 }
 
-void readFile(struct Editor *editor, char shortenedName[]) {
+void readFile(struct Editor *editor, const char shortenedName[]) {
     // Read the contents of the file
     editor->filePtr = fopen(shortenedName, "r+");
 }
 
 void drawFile(struct Editor *editor) {
     char fileContents[100];
-    while (fgets(fileContents, 100, editor->filePtr)) {
+    while (fgets(fileContents, sizeof(fileContents), editor->filePtr)) {
 #ifdef NO_LINK
         printf("%s", fileContents);
 #elif LINK
@@ -105,14 +116,12 @@ int main(int argc, char *argv[]) {
     sleep(2); // TODO(map) Sleep for two seconds so I can see the transition
     system("clear"); // TODO(map) Remove this when the sleep goes away
 
-    // Substring the path to the file to be able to get just the file name to
-    // be passed to loading the contents
-    char *x;
-    int index;
-    x = strrchr(fileName, '/');
-    index = (int)(x - fileName) + 1;
-    char shortenedName[50];
-    strncpy(shortenedName, fileName + index, strlen(fileName) - index);
+    // Get the file name itself using strrchr to find the last instance of a 
+    // slash in the fully qualified file path. Then increment the pointer
+    // returned by one to move past the forward slash.
+    char *shortenedName;
+    shortenedName = strrchr(fileName, '/');
+    shortenedName++;
 
 // Code that doesn't use ncurses at all
 #ifdef NO_LINK
@@ -145,7 +154,12 @@ int main(int argc, char *argv[]) {
         // TODO(map) Figure out why initial key press doesn't do anything.
         system("clear"); // Clear the screen
         printf("\33[0;0H"); // Put cursor in upper left corner
-        rewind(editor.filePtr); // Rewind the pointer so we can reread the file
+        /* rewind(editor.filePtr); // Rewind the pointer so we can reread the file */
+
+        // TODO(map) WIP
+        fclose(editor.filePtr);
+        readFile(&editor, shortenedName);
+
         drawFile(&editor); // Print the file contents
         printf("\33[%d;%dH", editor.yCoor, editor.xCoor); // Move cursor to correct new location.
     }

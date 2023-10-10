@@ -11,3 +11,8 @@ If using `ncurses` (which I'm not sure I want to permanently use), you can do
 gcc main.c -DLINK -lncurses
 ./a.out FILE_NAME
 ```
+To debug, I need to add an additional switch like this:
+```
+gcc -g main.c -DNO_LINK
+gdbtui --args ./a.out PATH_TO_FILE
+```
