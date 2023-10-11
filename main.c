@@ -21,6 +21,9 @@ struct Editor {
 
     // Current file that is being edited
     FILE *filePtr;
+
+    // File to hold temporary changes
+    FILE *tmpFilePtr;
 }
 
 processKeyPress(int keyPressed, struct Editor *editor) {
@@ -47,6 +50,18 @@ processKeyPress(int keyPressed, struct Editor *editor) {
         // TODO(map) Implement the insert mode
         int success = fseek(editor->filePtr, editor->xCoor, SEEK_SET);
         if (success == 0) {
+
+            // Copy the contents from the current cursor position onward to a
+            // temporary file so they can be added back later.
+            char fileBuffer[1];
+            while (feof(editor->filePtr) == 0) {
+                fread(fileBuffer, sizeof(fileBuffer), 1, editor->filePtr);
+                fputs(fileBuffer, editor->tmpFilePtr);
+            }
+            // Re-seek to the correct spot after moving through the file.
+            fseek(editor->filePtr, editor->xCoor, SEEK_SET);
+
+            // Insert the keys to the file if they are pressed
             if (keyPressed == 'j') {
                  fputs("j", editor->filePtr);
             } else if (keyPressed == 'k') {
@@ -61,6 +76,16 @@ processKeyPress(int keyPressed, struct Editor *editor) {
             }
             editor->xCoor++;
             printf("\33[%d;%dH", editor->yCoor, editor->xCoor);
+
+            // Place the contents of the temporary file into the original file
+            fseek(editor->tmpFilePtr, 0, SEEK_SET);
+            while (feof(editor->tmpFilePtr) == 0) {
+                fread(fileBuffer, sizeof(fileBuffer), 1, editor->tmpFilePtr);
+                fputs(fileBuffer, editor->filePtr);
+            }
+            // Re-seek to the correct spot after moving through the file.
+            fseek(editor->filePtr, editor->xCoor, SEEK_SET);
+
         } else {
             printf("Error seeking to file with code %d\n", success);
             exit(1);
@@ -75,6 +100,7 @@ processKeyPress(int keyPressed, struct Editor *editor) {
 void readFile(struct Editor *editor, const char shortenedName[]) {
     // Read the contents of the file
     editor->filePtr = fopen(shortenedName, "r+");
+    editor->tmpFilePtr = fopen("tmp.txt", "ab+");
 }
 
 void drawFile(struct Editor *editor) {
@@ -202,5 +228,6 @@ int main(int argc, char *argv[]) {
 
     // Clean up editor data including closing the pointer to the file.
     fclose(editor.filePtr);
+    fclose(editor.tmpFilePtr);
     return 0;
 }
