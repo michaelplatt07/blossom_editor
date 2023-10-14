@@ -75,7 +75,11 @@ processKeyPress(int keyPressed, struct Editor *editor) {
                 exit(1);
             }
             editor->xCoor++;
+#ifdef NO_LINK
             printf("\33[%d;%dH", editor->yCoor, editor->xCoor);
+#else
+            move(editor->yCoor, editor->xCoor);
+#endif
 
             // Place the contents of the temporary file into the original file
             fseek(editor->tmpFilePtr, 0, SEEK_SET);
@@ -216,9 +220,11 @@ int main(int argc, char *argv[]) {
             
         processKeyPress(key, &editor);
 
-        // TODO(map) Should the move be in the processKeyPress?
-        move(editor.yCoor, editor.xCoor);
-        refresh();
+        clear(); // Clear ncurses virtual screen
+        rewind(editor.filePtr); // Rewind the pointer so we can reread the file
+        drawFile(&editor); // Read the file from the beginning and put it on the virtual screen
+        move(editor.yCoor, editor.xCoor); // Move the cursor the to the correct position
+        refresh(); // Call refresh to draw the virtual screen
     }
 
     endwin();
